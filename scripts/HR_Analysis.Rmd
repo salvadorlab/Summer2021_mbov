@@ -1,0 +1,48 @@
+---
+title: "Mbovis_HR_analysis"
+author: "Noah Legall"
+date: "6/21/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Visualizing Regions Impacted by Homologous Recombination 
+load in the heatmap data
+
+```{r}
+library(reshape)
+library(ggplot2)
+library(gt)
+```
+
+```{r}
+setwd("~/CodingSANDBOX/scripts/")
+recomb_heat = read.csv("recombination_heatmap.csv",header = TRUE)
+recomb.melted = melt(recomb_heat, id="label")
+#head(recomb.melted)
+ggplot(recomb.melted, aes(variable,label,fill=factor(value))) + 
+  geom_tile() + 
+  scale_fill_manual(label=c("absent","present"),values=c("white","red")) +
+  theme(axis.text.x=element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks =element_blank(),
+        ) +
+  ggtitle("Heatmap of genomic regions impacted by homologous recombination") +
+  xlab("genomic region") + 
+  ylab("sample") +
+  labs(fill = "evidence of HR")
+  
+```
+
+```{r}
+recomb_genes <- read.table("recomb_gene.tbl",col.names = paste0("V",seq_len(10)), fill=TRUE)
+head(recomb_genes) 
+region <- gsub(".bed","",gsub("_","-",recomb_genes$V1))
+gene_name <- gsub(";gbkey","",gsub("Name=","",stringr::str_extract(string = recomb_genes$V10,pattern = "Name=.*;gbkey")))
+hr_impact.tbl <- data.frame(region,gene_name)
+hr_impact.tbl %>% gt( ) %>% tab_header(title = "Mycobacterium bovis genes impacted by homologous recombination") 
+#tbl_out %>% gtsave("hr_table.html",inline_css = TRUE)
+```
