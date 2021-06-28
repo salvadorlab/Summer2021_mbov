@@ -16,10 +16,11 @@ load in the heatmap data
 library(reshape)
 library(ggplot2)
 library(gt)
+library(dplyr)
 ```
 
 ```{r}
-setwd("~/CodingSANDBOX/scripts/")
+setwd("~/../../../Documents/summer_project/Summer2021_mbov/dependencies/")
 recomb_heat = read.csv("recombination_heatmap.csv",header = TRUE)
 recomb.melted = melt(recomb_heat, id="label")
 #head(recomb.melted)
@@ -45,4 +46,43 @@ gene_name <- gsub(";gbkey","",gsub("Name=","",stringr::str_extract(string = reco
 hr_impact.tbl <- data.frame(region,gene_name)
 hr_impact.tbl %>% gt( ) %>% tab_header(title = "Mycobacterium bovis genes impacted by homologous recombination") 
 #tbl_out %>% gtsave("hr_table.html",inline_css = TRUE)
+```
+
+```{r}
+setwd("~/../../../Documents/summer_project/Summer2021_mbov/dependencies/")
+hr_stats <- read.csv("recombination_stats.csv")
+hr_stats %>% ggplot(aes(x=Import.Length,)) + 
+  geom_histogram(binwidth = 10,fill = "steelblue") +
+  theme_minimal() +
+  xlab("size of the homologous recombination region")
+
+hr_stats %>% ggplot(aes(x=No..SNPs,)) + 
+  geom_histogram(binwidth = 1,fill = "steelblue") +
+  theme_minimal() +
+  xlab("No. of SNPs within a homologous recombination region")
+
+import_num <- read.csv("isolate_import_num.csv",header = TRUE)
+accession_meta <- read.csv("ProjectBovisReservoir_metadata.csv", header = TRUE, stringsAsFactors = FALSE)
+import_num <- import_num %>% left_join(accession_meta,by = c("label"= "ï..Sample"))
+
+ggplot(import_num, aes(x=Country, y=X0, fill=Country)) + 
+  geom_boxplot() +
+  labs(y="Number of Imports") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        panel.background = element_rect(fill = "white"),
+        panel.grid.major = element_line(size = 0.5, linetype = 'solid',
+                                        colour = "gray80"), 
+        panel.grid.minor = element_line(size = 0.25, linetype = 'solid',
+                                        colour = "gray80")) 
+
+ggplot(subset(import_num,import_num$Species != "STOAT-NZ"), aes(x=Species, y=X0, fill=Species)) + 
+  geom_boxplot() + 
+  labs(y="Number of homologous recombination regions") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        panel.background = element_rect(fill = "white"),
+        panel.grid.major = element_line(size = 0.5, linetype = 'solid',
+                                        colour = "gray80"), 
+        panel.grid.minor = element_line(size = 0.25, linetype = 'solid',
+                                        colour = "gray80"))
+
 ```
