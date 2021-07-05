@@ -20,11 +20,32 @@ library(dplyr)
 library(ggtree)
 library(phytools)
 library(patchwork)
+library(tidyr)
 ```
 
 ```{r}
 setwd("../dependencies/")
 recomb_heat = read.csv("recombination_heatmap.csv",header = TRUE)
+
+pre_regions <- as.data.frame(colnames(recomb_heat))
+pre_regions$regions <- gsub("X","",pre_regions$`colnames(recomb_heat)`)
+pre_regions <- subset(pre_regions,pre_regions$regions != "label")
+regions <- pre_regions %>% separate(regions,c("start","end"))
+regions$start <- as.numeric(regions$start)
+regions$end <- as.numeric(regions$end)
+regions$coords <- floor((regions$end + regions$start)/2)
+regions <- regions[order(regions$coords),]
+colnames(recomb_heat) <- c("label",regions$coords)
+
+regions %>% ggplot(aes(x = coords)) + 
+  geom_point(aes(y = 0),color = "red", size = 3) + 
+  theme(axis.title.y=element_blank(),
+           axis.text.y=element_blank(), 
+           axis.ticks.y=element_blank(),
+        panel.background = element_blank()) +
+  xlim(0, 4.4e+06)
+
+
 recomb.melted = melt(recomb_heat, id="label")
 #head(recomb.melted)
 ggplot(recomb.melted, aes(variable,label,fill=factor(value))) + 
@@ -40,6 +61,27 @@ ggplot(recomb.melted, aes(variable,label,fill=factor(value))) +
   labs(fill = "evidence of HR")
   
 ```
+```{r}
+pre_regions <- as.data.frame(colnames(recomb_heat))
+pre_regions$regions <- gsub("X","",pre_regions$`colnames(recomb_heat)`)
+pre_regions <- subset(pre_regions,pre_regions$regions != "label")
+regions <- pre_regions %>% separate(regions,c("start","end"))
+regions$start <- as.numeric(regions$start)
+regions$end <- as.numeric(regions$end)
+regions <- regions[order(regions$start),]
+regions$coords <- floor((regions$end + regions$start)/2)
+regions$color <- "red"
+
+regions %>% ggplot(aes(x = coords)) + 
+  geom_point(aes(y = 0),color = "red", size = 3) + 
+  theme(axis.title.y=element_blank(),
+           axis.text.y=element_blank(), 
+           axis.ticks.y=element_blank(),
+        panel.background = element_blank()) +
+  xlim(0, 4.4e+06)
+
+```
+
 
 ```{r}
 recomb_genes <- read.table("recomb_gene.tbl",col.names = paste0("V",seq_len(10)), fill=TRUE)
@@ -87,8 +129,7 @@ species_box <- ggplot(subset(import_num,import_num$Species != "STOAT-NZ"), aes(x
                                         colour = "gray80"), 
         panel.grid.minor = element_line(size = 0.25, linetype = 'solid',
                                         colour = "gray80"))
-
-(species_box | country_box)
+country_box
 ```
 
 ```{r}
@@ -99,20 +140,20 @@ isolate_melt$variable=as.character(levels(isolate_melt$variable))[isolate_melt$v
 
 mbov_tree <- root(mbov_tree,"Reference")
 mbov_tree <- drop.tip(mbov_tree,"Reference")
-mbov <- ggtree(mbov_tree) 
+mbov <- ggtree(mbov_tree,layout = "circular",branch.length = 'none') 
 
-mbov
+tree_meta <- read.csv("../dependencies/filtered_isolate_list.csv", header = TRUE)
 
-species_bar <- subset(isolate_melt,variable == "Species") %>%
-  ggplot(aes(x=variable,y=Sample))+
-  geom_tile(aes(fill=value)) + 
-  theme_minimal()  + theme_tree2()
-  
+mbov %<+% tree_meta +
+  geom_tippoint(aes(color = Species))
 
-country_bar <- subset(isolate_melt,variable == "Country") %>%
-  ggplot(aes(x=variable,y=Sample))+
-  geom_tile(aes(fill=value)) + 
-  theme_tree2()
+#taxa_order <- as.data.frame(mbov_tree$tip.label)
+#taxa_order <- taxa_order %>% left_join(tree_meta,by = c("mbov_tree$tip.label"= "Sample"))
+#nz_samps = subset(tree_meta,tree_meta$Country == "New Zealand")
+#I used the taxa_order to find the clades to subset
 
+#find the index of the isolates, and chose the max & min 
+#viewClade(mbov,MRCA(mbov,"SRX5400248","SRX5400221"))
+#viewClade(mbov,MRCA(mbov,"SRX2526938","SRX2527172"))
 ```
 
