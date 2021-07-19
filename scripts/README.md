@@ -9,4 +9,5 @@ To list the scripts that allow the analyses to occur
 5. *gubbins.sh*: predict regions of homologous recombination amongst isolates 
 6. *recom_heatmap.py*: converts gubbins output to a presence/absence heatmap dataframe 
 7. *recom_stats.py*: extract stats regarding number of SNPs impacted and length of the recombination region
-8. *subalignment.py*: given a full alignment and a list of isolates, create a subalignment of those isolates
+8. *hr_region_num.py*: this simple script goes through the recombination heatmap and sums the number of present recombination regions per sample
+9. *subalignment.py*: given a full alignment and a list of isolates, create a subalignment of those isolates
