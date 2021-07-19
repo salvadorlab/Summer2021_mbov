@@ -9,8 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Visualizing Regions Impacted by Homologous Recombination 
-load in the heatmap data
+## libraries for this analysis
 
 ```{r}
 library(reshape)
@@ -21,7 +20,11 @@ library(ggtree)
 library(phytools)
 library(patchwork)
 library(tidyr)
+library(fastbaps)
+library(ape)
+library(ggnewscale)
 ```
+## Homologous recombination heatmap
 
 ```{r}
 setwd("../dependencies/")
@@ -34,8 +37,11 @@ regions <- pre_regions %>% separate(regions,c("start","end"))
 regions$start <- as.numeric(regions$start)
 regions$end <- as.numeric(regions$end)
 regions$coords <- floor((regions$end + regions$start)/2)
-regions <- regions[order(regions$coords),]
+#regions <- regions[order(regions$coords),]
 colnames(recomb_heat) <- c("label",regions$coords)
+recomb_heat <- recomb_heat[,!duplicated(colnames(recomb_heat))]
+recomb_heat <- recomb_heat[,order(as.numeric(names(recomb_heat)))]
+
 
 regions %>% ggplot(aes(x = coords)) + 
   geom_point(aes(y = 0),color = "red", size = 3) + 
@@ -61,37 +67,83 @@ ggplot(recomb.melted, aes(variable,label,fill=factor(value))) +
   labs(fill = "evidence of HR")
   
 ```
-```{r}
-pre_regions <- as.data.frame(colnames(recomb_heat))
-pre_regions$regions <- gsub("X","",pre_regions$`colnames(recomb_heat)`)
-pre_regions <- subset(pre_regions,pre_regions$regions != "label")
-regions <- pre_regions %>% separate(regions,c("start","end"))
-regions$start <- as.numeric(regions$start)
-regions$end <- as.numeric(regions$end)
-regions <- regions[order(regions$start),]
-regions$coords <- floor((regions$end + regions$start)/2)
-regions$color <- "red"
-
-regions %>% ggplot(aes(x = coords)) + 
-  geom_point(aes(y = 0),color = "red", size = 3) + 
-  theme(axis.title.y=element_blank(),
-           axis.text.y=element_blank(), 
-           axis.ticks.y=element_blank(),
-        panel.background = element_blank()) +
-  xlim(0, 4.4e+06)
-
-```
-
+## Genes impacted by HR
 
 ```{r}
+setwd("../dependencies/")
 recomb_genes <- read.table("recomb_gene.tbl",col.names = paste0("V",seq_len(10)), fill=TRUE)
-head(recomb_genes) 
+hr_perc <-read.csv("hr_percentage.csv")
+
 region <- gsub(".bed","",gsub("_","-",recomb_genes$V1))
 gene_name <- gsub(";gbkey","",gsub("Name=","",stringr::str_extract(string = recomb_genes$V10,pattern = "Name=.*;gbkey")))
 hr_impact.tbl <- data.frame(region,gene_name)
+
 hr_impact.tbl %>% gt( ) %>% tab_header(title = "Mycobacterium bovis genes impacted by homologous recombination") 
-#tbl_out %>% gtsave("hr_table.html",inline_css = TRUE)
+tbl_out <- hr_perc %>% gt() %>% tab_header(title = "percentage of genes impacted by homologous recombination") 
+tbl_out %>% gtsave("hr_percent.html",inline_css = TRUE)
 ```
+
+## Genes that are impacted by HR per group 
+
+```{r}
+#subset the heatmap by country, species, population structure
+
+recomb_extend <- recomb_heat %>% left_join(accession_meta,by = c("label" = "Sample")) %>% left_join(plot.df, by = c("label" = "id")) %>% drop_na()
+gene_table <- hr_perc %>% select(gene,Beginning,End)
+
+df <- data.frame(matrix(ncol = 3, nrow = 0))
+
+for (group in 1:length(unique(recomb_extend$Country))){
+current <- unique(recomb_extend$Country)[group] 
+result <- recomb_extend %>% filter(Country == current) %>% select(-c(label,Species,Country,Host)) %>% select_if(~sum(.) >= 1)
+is_gene_impacted <- data.frame(matrix(ncol = 3, nrow = 0))
+#coordinates impacted will be columns with something other than zero
+#if the column is in between a gene's region than report that gene as impacted in that group
+imp_col <- as.numeric(colnames(result))
+is_gene_impacted <- as.data.frame(ifelse(sapply(imp_col, function(p) any(gene_table$End >= p & gene_table$Beginning <= p)),gene_table$gene, "none"))
+
+is_gene_impacted$V1 <- unique(recomb_extend$Country)[group] 
+is_gene_impacted$V2 <- "Country"
+
+df <- rbind(df,is_gene_impacted)
+}
+
+for (group in 1:length(unique(recomb_extend$Species))){
+current <- unique(recomb_extend$Species)[group] 
+result <- recomb_extend %>% filter(Species == current) %>% select(-c(label,Species,Country,Host)) %>% select_if(~sum(.) >= 1)
+is_gene_impacted <- data.frame(matrix(ncol = 3, nrow = 0))
+#coordinates impacted will be columns with something other than zero
+#if the column is in between a gene's region than report that gene as impacted in that group
+imp_col <- as.numeric(colnames(result))
+is_gene_impacted <- as.data.frame(ifelse(sapply(imp_col, function(p) any(gene_table$End >= p & gene_table$Beginning <= p)),gene_table$gene, "none"))
+
+is_gene_impacted$V1 <- unique(recomb_extend$Species)[group] 
+is_gene_impacted$V2 <- "Species"
+df <- rbind(df,is_gene_impacted)
+}
+
+for (group in 1:length(unique(as.factor(recomb_extend$fastbaps)))){
+current <- unique(as.factor(recomb_extend$fastbaps))[group] 
+
+result <- recomb_extend %>% filter(as.factor(recomb_extend$fastbaps) == current) %>% select(-c(label,Species,Country,Host)) %>% select_if(~sum(.) >= 1)
+
+is_gene_impacted <- data.frame(matrix(ncol = 3, nrow = 0))
+#coordinates impacted will be columns with something other than zero
+#if the column is in between a gene's region than report that gene as impacted in that group
+imp_col <- as.numeric(colnames(result))
+
+is_gene_impacted <- as.data.frame(ifelse(sapply(imp_col, function(p) any(gene_table$End >= p & gene_table$Beginning <= p)),gene_table$gene, "none"))
+
+is_gene_impacted$V1 <- unique(as.factor(recomb_extend$fastbaps))[group] 
+is_gene_impacted$V2 <- "PopStructure"
+df <- rbind(df,is_gene_impacted)
+}
+
+colnames(df) <- c("gene","class","group")
+#come back, do this for all the groups
+```
+
+## HR stats
 
 ```{r}
 setwd("../dependencies/")
@@ -106,9 +158,94 @@ hr_stats %>% ggplot(aes(x=No..SNPs,)) +
   theme_minimal() +
   xlab("No. of SNPs within a homologous recombination region")
 
-import_num <- read.csv("isolate_import_num.csv",header = TRUE)
-accession_meta <- read.csv("ProjectBovisReservoir_metadata.csv", header = TRUE, stringsAsFactors = FALSE)
+```
+
+## Population Structure
+
+```{r}
+mbov_snp <- "../dependencies/mbov.snp.aln"
+sparse.data <- import_fasta_sparse_nt(mbov_snp)
+sparse.data <- optimise_prior(sparse.data, type = "optimise.symmetric")
+baps.hc <- fast_baps(sparse.data)
+best.partition <- best_baps_partition(sparse.data, baps.hc)
+
+iqtree <- phytools::read.newick("../dependencies/mbov_align.treefile")
+plot.df <- data.frame(id = colnames(sparse.data$snp.matrix), fastbaps = best.partition, 
+    stringsAsFactors = FALSE)
+
+
+
+gg <- ggtree(iqtree)
+pop_clust <- facet_plot(gg, panel = "fastbaps", data = plot.df, geom = geom_tile, aes(x = fastbaps), color = "blue")
+
+pop_clust
+```
+
+
+## Phylogeny
+
+```{r}
+mbov_tree <- read.tree("../dependencies/mbov_align.treefile")
+isolate_dat = read.csv("../dependencies/filtered_isolate_list.csv",header = TRUE)
+gc_content <- read.table("../dependencies/mbov_gc.tbl")
+
+sb_data <- read.table("../dependencies/mbov_sb.tbl",sep="\t")
+#print(sb_data$V1)
+split_samp <- strsplit(sb_data$V1,".paired.trimmed.R1.fastq&")
+
+samp <- c()
+for(i in 1:700){
+  #print(split_samp[[i]][1])
+  samp <- append(samp,split_samp[[i]][1])
+}
+
+sb_data <- as.data.frame(cbind(samp,sb_data$V4))
+
+isolate_dat <- isolate_dat %>% left_join(plot.df, by = c("Sample" = "id")) %>% left_join(gc_content,by = c("Sample" = "V1")) %>% left_join(sb_data,by = c("Sample" = "samp"))
+
+isolate_melt <- melt(isolate_dat,id = "Sample")
+isolate_melt$variable=as.character(levels(isolate_melt$variable))[isolate_melt$variable]
+
+geom_text2(aes(label=label, subset = !is.na(as.numeric(label)) & as.numeric(label) > 80))
+mbov_tree <- root(mbov_tree,"Reference")
+mbov_tree <- drop.tip(mbov_tree,"Reference")
+mbov <- ggtree(mbov_tree, layout = "circular", branch.length = "none") 
+
+
+
+mbov_node_support <- mbov %<+% isolate_dat + 
+  geom_point2(aes(label=label, subset = !is.na(as.numeric(label)) & as.numeric(label) < 100 & as.numeric(label) > 75), color = "black") +
+  geom_point2(aes(label=label, subset = !is.na(as.numeric(label)) & as.numeric(label) < 75 & as.numeric(label) > 50), color = "grey30") + 
+  geom_point2(aes(label=label, subset = !is.na(as.numeric(label)) & as.numeric(label) < 50), color = "grey10")
+
+species_heat <- as.data.frame(isolate_dat$Species)
+rownames(species_heat) <- isolate_dat$Sample
+
+country_heat <- as.data.frame(isolate_dat$Country)
+rownames(country_heat) <- isolate_dat$Sample
+
+baps_heat <- as.data.frame(as.factor(isolate_dat$fastbaps))
+rownames(baps_heat) <- isolate_dat$Sample
+
+mb1 <- gheatmap(mbov_node_support,species_heat, offset= 2, width=.1, colnames = FALSE)
+mb2 <- mb1 + new_scale_fill()
+mb2 <- gheatmap(mb2,country_heat, offset=8, width = .15,colnames = FALSE) 
+mb3 <- mb2 + new_scale_fill()
+gheatmap(mb3,baps_heat, offset=18, width = .2, colnames = FALSE) + theme(legend.position = "none")
+
+#add spoligotype info? 
+#edit color palletes
+#add the legends neatly (powerpoint)
+
+```
+
+##Boxplots
+```{r}
+import_num <- read.csv("../dependencies/isolate_import_num.csv",header = TRUE)
+accession_meta <- read.csv("../dependencies/ProjectBovisReservoir_metadata.csv", header = TRUE, stringsAsFactors = FALSE)
 import_num <- import_num %>% left_join(accession_meta,by = c("label"= "Sample"))
+
+import_num <- import_num %>% left_join(gc_content,by = c("label"="V1")) %>% left_join(plot.df, by = c("label" = "id"))
 
 country_box <- ggplot(import_num, aes(x=Country, y=X0, fill=Country)) + 
   geom_boxplot() +
@@ -129,31 +266,86 @@ species_box <- ggplot(subset(import_num,import_num$Species != "STOAT-NZ"), aes(x
                                         colour = "gray80"), 
         panel.grid.minor = element_line(size = 0.25, linetype = 'solid',
                                         colour = "gray80"))
+
+cluster_box <- ggplot(import_num, aes(x=factor(fastbaps), y=X0, fill=factor(fastbaps))) + 
+  geom_boxplot() + 
+  labs(y="Number of homologous recombination regions") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        panel.background = element_rect(fill = "white"),
+        panel.grid.major = element_line(size = 0.5, linetype = 'solid',
+                                        colour = "gray80"), 
+        panel.grid.minor = element_line(size = 0.25, linetype = 'solid',
+                                        colour = "gray80"))
+species_box
 country_box
+cluster_box
+
+isolate_dat %>% ggplot(aes(x=Country,y=V2.x,fill=Country)) +
+  geom_boxplot()
+
+isolate_dat %>% ggplot(aes(x=Species,y=V2.x,fill=Species)) +
+  geom_boxplot()
+
+isolate_dat %>% ggplot(aes(x=fastbaps,y=V2.x,fill=factor(fastbaps))) +
+  geom_boxplot()
 ```
+
+##Spoligotype plots
 
 ```{r}
-mbov_tree <- read.tree("../dependencies/mbov_align.final_tree.tre")
-isolate_dat = read.csv("../dependencies/filtered_isolate_list.csv",header = TRUE)
-isolate_melt <- melt(isolate_dat,id = "Sample")
-isolate_melt$variable=as.character(levels(isolate_melt$variable))[isolate_melt$variable]
+p <- ggplot(isolate_dat, aes(V2.y)) + geom_bar()
 
-mbov_tree <- root(mbov_tree,"Reference")
-mbov_tree <- drop.tip(mbov_tree,"Reference")
-mbov <- ggtree(mbov_tree,layout = "circular",branch.length = 'none') 
+p + facet_grid(rows = vars(Country)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
-tree_meta <- read.csv("../dependencies/filtered_isolate_list.csv", header = TRUE)
+p + facet_wrap(~ Species, ncol=3) +
+  theme(axis.text.x = element_text(angle = 90))
 
-mbov %<+% tree_meta +
-  geom_tippoint(aes(color = Species))
-
-#taxa_order <- as.data.frame(mbov_tree$tip.label)
-#taxa_order <- taxa_order %>% left_join(tree_meta,by = c("mbov_tree$tip.label"= "Sample"))
-#nz_samps = subset(tree_meta,tree_meta$Country == "New Zealand")
-#I used the taxa_order to find the clades to subset
-
-#find the index of the isolates, and chose the max & min 
-#viewClade(mbov,MRCA(mbov,"SRX5400248","SRX5400221"))
-#viewClade(mbov,MRCA(mbov,"SRX2526938","SRX2527172"))
+p + facet_wrap(~ fastbaps, ncol=4) +
+  theme(axis.text.x = element_text(angle = 90))
 ```
 
+## Manhattan Plots for Selective Sweep Regions
+```{r}
+setwd("../dependencies/")
+
+op_US <- read.table("../dependencies/OmegaPlus_Report.US_mp")
+op_US$class <- "USA"
+op_UK <- read.table("../dependencies/OmegaPlus_Report.UK_mp")
+op_UK$class <- "UK"
+op_NZ <- read.table("../dependencies/OmegaPlus_Report.NZ_mp")
+op_NZ$class <- "NZ"
+
+op_badger <- read.table("../dependencies/OmegaPlus_Report.badger_mp")
+op_badger$class <- "badger"
+op_deer <- read.table("../dependencies/OmegaPlus_Report.deer_mp")
+op_deer$class <- "deer"
+op_possum <- read.table("../dependencies/OmegaPlus_Report.possum_mp")
+op_possum$class <- "possum"
+
+op_3 <- read.table("../dependencies/OmegaPlus_Report.3_mp")
+op_3$class <- "3"
+op_5 <- read.table("../dependencies/OmegaPlus_Report.5_mp")
+op_5$class <- "5"
+op_6 <- read.table("../dependencies/OmegaPlus_Report.6_mp")
+op_6$class <- "6"
+op_7 <- read.table("../dependencies/OmegaPlus_Report.7_mp")
+op_7$class <- "7"
+op_8 <- read.table("../dependencies/OmegaPlus_Report.8_mp")
+op_8$class <- "8"
+
+
+op_dat <- rbind(op_US,op_UK,op_NZ,op_badger,op_deer,op_possum,op_3,op_5,op_6,op_7,op_8)
+op_dat$coords <- rownames(op_dat)
+
+#clean
+for (group in 1:length(unique(op_dat$class))){
+current <- unique(op_dat$class)[group] 
+print(current)
+op_gg <- op_dat %>% filter(class == current) %>% ggplot(aes(x=floor(as.numeric(coords)),y=X..1)) + geom_point()
+plot(op_gg)
+
+# we want to find the genomic sites that are significantly higher than expected and cross reference that with M. bovis genes - will be the work of tomorrow. 
+}
+
+```
