@@ -1,0 +1,41 @@
+
+
+                                      _______________
+
+                                         OmegaPlus
+                                      _______________
+
+
+
+ OmegaPlus version 3.0.3 released by Nikolaos Alachiotis and Pavlos Pavlidis in April 2018.
+
+
+ Command:
+
+	 /scratch/noahaus/bov_pangen_reservoirs/softwares/OmegaPlus/omegaplus/OmegaPlus -name UK_mp -grid 5000 -minwin 1000 -maxwin 10000 -input UK_isolates.fa
+
+
+
+ Input file format (0:ms, 1:fasta, 2:macs, 3:vcf, 4:sf, 5:mbs):	1
+ Gap (-) imputation:						OFF
+ Ambiguous character (N) imputation:				OFF
+ Omega search strategy:						Exhaustive
+ Alignment deduction to binary:					OFF
+
+
+ Alignment 1
+		Sequences:		277
+		Sites:			4349904
+		Discarded sites:	4347224
+
+		Processing (seconds):	41.705613
+
+		Max Omega:		51693.328125
+		Location:		3214485.25
+		Leftmost SNP:		3213862
+		Rightmost SNP:		3220071
+
+
+ Total elapsed time 41.713125 seconds.
+
+
