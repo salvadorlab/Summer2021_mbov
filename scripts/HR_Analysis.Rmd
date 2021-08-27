@@ -5,6 +5,8 @@ date: "6/21/2021"
 output: html_document
 ---
 
+#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
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
@@ -91,7 +93,7 @@ b <- num_genomes %>% filter(num < 700)  %>% ggplot(aes(x=num)) +
 
 grid.arrange(a,b, nrow = 1)
 ```
-## Genes impacted by HR
+## Genes impacted by HR ()
 
 ```{r}
 setwd("../dependencies/")
@@ -99,16 +101,15 @@ recomb_genes <- read.table("recomb_gene.tbl",col.names = paste0("V",seq_len(10))
 
 
 # Need to develop a script for the percentage
-hr_perc <-read.csv("hr_percentage.csv")
+#hr_perc <-read.csv("hr_percentage.csv")
 
 region <- gsub(".bed","",gsub("_","-",recomb_genes$V1))
 gene_name <- gsub(";gbkey","",gsub("Name=","",stringr::str_extract(string = recomb_genes$V9,pattern = "Name=.*;gbkey")))
 hr_impact.tbl <- data.frame(region,gene_name)
 
 hr_impact.tbl %>% unique() %>% gt( ) %>% tab_header(title = "Mycobacterium bovis genes impacted by homologous recombination") 
-tbl_out <- hr_perc %>% gt() %>% tab_header(title = "percentage of genes impacted by homologous recombination")
 write.csv(hr_impact.tbl,"mbov_hr_impact.csv")
-tbl_out %>% gtsave("hr_percent.html",inline_css = TRUE)
+
 ```
 
 ## Genes that are impacted by HR per group 
@@ -135,7 +136,7 @@ accession_meta$Species <- gsub("-US","",accession_meta$Species)
 
 
 recomb_extend <- recomb_heat %>% left_join(accession_meta,by = c("label" = "Sample")) %>% left_join(plot.df, by = c("label" = "id")) %>% drop_na()
-gene_table <- hr_perc %>% select(gene,Beginning,End)
+#gene_table <- hr_perc %>% select(gene,Beginning,End)
 
 df <- data.frame(matrix(ncol = 3, nrow = 0))
 
@@ -557,7 +558,7 @@ op_dat_extend$log_p <- (-1*log10(op_dat_extend$p_value))
 #op_dat_extend %>% select(omega,class,coords,p_value) %>% filter(class == "NZ" | class == "possum" | class == "7") %>% ggplot(aes(x=p_value)) + geom_histogram()
 
 bonferroni_corrected = 0.05/5000
-ss_out.tbl <- op_dat_extend %>% select(omega,class,coords,pval.adj,log_p) %>% filter(pval.adj < 0.05 & omega > 50)
+ss_out.tbl <- op_dat_extend %>% dplyr::select(omega,class,coords,pval.adj,log_p) %>% filter(pval.adj < 0.05 & omega > 50)
 write.csv(ss_out.tbl, "../dependencies/mbov_ss.csv")
 
 for (group in 1:length(unique(op_dat$class))){
