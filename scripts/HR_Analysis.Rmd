@@ -40,7 +40,7 @@ regions <- pre_regions %>% separate(regions,c("start","end"))
 regions$start <- as.numeric(regions$start)
 regions$end <- as.numeric(regions$end)
 regions$coords <- floor((regions$end + regions$start)/2)
-#regions <- regions[order(regions$coords),]
+regions <- regions[order(regions$coords),]
 colnames(recomb_heat) <- c("label",regions$coords)
 recomb_heat <- recomb_heat[,!duplicated(colnames(recomb_heat))]
 recomb_heat <- recomb_heat[,order(as.numeric(names(recomb_heat)))]
@@ -104,7 +104,7 @@ recomb_genes <- read.table("recomb_gene.tbl",col.names = paste0("V",seq_len(10))
 #hr_perc <-read.csv("hr_percentage.csv")
 
 region <- gsub(".bed","",gsub("_","-",recomb_genes$V1))
-gene_name <- gsub(";gbkey","",gsub("Name=","",stringr::str_extract(string = recomb_genes$V9,pattern = "Name=.*;gbkey")))
+gene_name <- gsub(";gbkey","",gsub("Name=","",stringr::str_extract(string = recomb_genes$V4,pattern = "Name=.*;gbkey")))
 hr_impact.tbl <- data.frame(region,gene_name)
 
 hr_impact.tbl %>% unique() %>% gt( ) %>% tab_header(title = "Mycobacterium bovis genes impacted by homologous recombination") 
@@ -136,7 +136,7 @@ accession_meta$Species <- gsub("-US","",accession_meta$Species)
 
 
 recomb_extend <- recomb_heat %>% left_join(accession_meta,by = c("label" = "Sample")) %>% left_join(plot.df, by = c("label" = "id")) %>% drop_na()
-#gene_table <- hr_perc %>% select(gene,Beginning,End)
+gene_table <- hr_perc %>% select(gene,Beginning,End)
 
 df <- data.frame(matrix(ncol = 3, nrow = 0))
 
