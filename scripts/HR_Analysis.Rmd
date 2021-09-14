@@ -101,7 +101,7 @@ recomb_genes <- read.table("recomb_gene.tbl",col.names = paste0("V",seq_len(10))
 
 
 # Need to develop a script for the percentage
-hr_perc <-read.csv("hr_percentage.csv")
+#hr_perc <-read.csv("hr_percentage.csv")
 
 region <- gsub(".bed","",gsub("_","-",recomb_genes$V1))
 gene_name <- gsub(";gbkey","",gsub("Name=","",stringr::str_extract(string = recomb_genes$V4,pattern = "Name=.*;gbkey")))
@@ -624,6 +624,9 @@ cluster_rf$class <- "Population Cluster"
 mbov_rf.results <- rbind(species_rf,country_rf,cluster_rf)
 ```
 
+
+
+
 ```{r}
 for(i in 1:length(unique(mbov_rf.results$class))){
   current = unique(mbov_rf.results$class)[i]
@@ -654,4 +657,104 @@ for(i in 1:length(unique(mbov_rf.results$class))){
 
 ## figure out how to put these in a grid?
 
+```
+
+```{r}
+    #Cluster
+sub_data <- subset(mbov_rf.results,class == "Population Cluster")
+  
+  #For accuracy 
+  quant251 <- quantile(sub_data$MeanDecreaseAccuracy,0.25)
+  quant751 <- quantile(sub_data$MeanDecreaseAccuracy,0.75)
+  iqr1 = quant751 - quant251
+  threshold1 = iqr1*1.5 + quant751
+  
+  #For gini
+  quant252 <- quantile(sub_data$MeanDecreaseGini,0.25)
+  quant752 <- quantile(sub_data$MeanDecreaseGini,0.75)
+  iqr2 = quant752 - quant252
+  threshold2 = iqr2*1.5 + quant752
+  
+  sub_data$importance <- ifelse(sub_data$MeanDecreaseAccuracy > threshold1 & sub_data$MeanDecreaseGini > threshold2, "TRUE", "FALSE")
+  
+     c <- sub_data %>% ggplot(aes(x=MeanDecreaseAccuracy, y=MeanDecreaseGini,color = importance)) +
+  geom_point() +
+    theme_minimal()+
+    scale_color_manual(values = c("gray","black")) +
+    ggtitle("Population Cluster") + 
+       annotate(geom = "text", x = 15.2, y = 16.198440, label = "Mb0403", hjust = "left") +
+       annotate(geom = "text", x = 14.7, y = 15.010953, label = "rpfA", hjust = "left") +
+        annotate(geom = "text", x = 16, y = 5.670926, label = "rpfA", hjust = "left") +
+       annotate(geom = "text", x = 17.8, y = 24.702927, label = "pks12", hjust = "left") +
+       annotate(geom = "text", x = 16, y = 12.307589, label = "pks12", hjust = "left") +
+       annotate(geom = "text", x = 16.5, y = 13.671872, label = "Mb2189c", hjust = "left") +
+       annotate(geom = "text", x = 28.6, y = 31.784458, label = "Mb3510c", hjust = "left") +
+     xlim(c(-10,35))
+```
+
+```{r}
+#Species
+sub_data <- subset(mbov_rf.results,class == "Species")
+  
+  #For accuracy 
+  quant251 <- quantile(sub_data$MeanDecreaseAccuracy,0.25)
+  quant751 <- quantile(sub_data$MeanDecreaseAccuracy,0.75)
+  iqr1 = quant751 - quant251
+  threshold1 = iqr1*1.5 + quant751
+  
+  #For gini
+  quant252 <- quantile(sub_data$MeanDecreaseGini,0.25)
+  quant752 <- quantile(sub_data$MeanDecreaseGini,0.75)
+  iqr2 = quant752 - quant252
+  threshold2 = iqr2*1.5 + quant752
+  
+  sub_data$importance <- ifelse(sub_data$MeanDecreaseAccuracy > threshold1 & sub_data$MeanDecreaseGini > threshold2, "TRUE", "FALSE")
+  
+   a <- sub_data %>% ggplot(aes(x=MeanDecreaseAccuracy, y=MeanDecreaseGini,color = importance)) +
+  geom_point() +
+    theme_minimal()+
+    scale_color_manual(values = c("gray","black")) +
+    ggtitle("Species") + 
+     annotate(geom = "text", x = 23.7, y = 10.022635, label = "Mb3510c", hjust = "left") +
+     annotate(geom = "text", x = 12.9, y = 13.857494, label = "Mb1399c", hjust = "left") + 
+     annotate(geom = "text", x = 17.9, y = 7.974693, label = "Mb3510c", hjust = "left") + 
+     annotate(geom = "text", x = 14.9, y = 3.685742, label = "rpfA", hjust = "left") + 
+     xlim(c(-10,28))
+  
+   
+#Country
+sub_data <- subset(mbov_rf.results,class == "Country")
+  
+  #For accuracy 
+  quant251 <- quantile(sub_data$MeanDecreaseAccuracy,0.25)
+  quant751 <- quantile(sub_data$MeanDecreaseAccuracy,0.75)
+  iqr1 = quant751 - quant251
+  threshold1 = iqr1*1.5 + quant751
+  
+  #For gini
+  quant252 <- quantile(sub_data$MeanDecreaseGini,0.25)
+  quant752 <- quantile(sub_data$MeanDecreaseGini,0.75)
+  iqr2 = quant752 - quant252
+  threshold2 = iqr2*1.5 + quant752
+  
+  sub_data$importance <- ifelse(sub_data$MeanDecreaseAccuracy > threshold1 & sub_data$MeanDecreaseGini > threshold2, "TRUE", "FALSE")
+  
+    b <- sub_data %>% ggplot(aes(x=MeanDecreaseAccuracy, y=MeanDecreaseGini,color = importance)) +
+  geom_point() +
+    theme_minimal()+
+    scale_color_manual(values = c("gray","black")) +
+    ggtitle("Country") + 
+     annotate(geom = "text", x = 13.8, y = 13.964651, label = "Mb0403", hjust = "left") +
+     annotate(geom = "text", x = 15.3, y = 16.785824, label = "rpfA", hjust = "left") + 
+    annotate(geom = "text", x = 11.6, y = 2, label = "rpfA", hjust = "left") + 
+      annotate(geom = "text", x = 15.2, y = 21.669909, label = "rpfA", hjust = "left") + 
+      annotate(geom = "text", x = 24, y = 34.458077, label = "Mb3510c", hjust = "left") + 
+      annotate(geom = "text", x = 29.8, y = 41.599674, label = "Mb3510c", hjust = "left") + 
+      annotate(geom = "text", x = 12.9, y = 20.689603, label = "pks12", hjust = "right") + 
+     xlim(c(-10,35))
+```
+
+```{r}
+#pick up here tomorrow, make more publication ready
+grid.arrange(a,b,c)
 ```
