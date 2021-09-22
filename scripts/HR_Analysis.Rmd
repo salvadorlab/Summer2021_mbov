@@ -681,18 +681,22 @@ sub_data <- subset(mbov_rf.results,class == "Population Cluster")
   geom_point() +
     theme_minimal()+
     scale_color_manual(values = c("gray","black")) +
-    ggtitle("Population Cluster") + 
+    ggtitle("C") + 
        annotate(geom = "text", x = 15.2, y = 16.198440, label = "Mb0403", hjust = "left") +
-       annotate(geom = "text", x = 14.7, y = 15.010953, label = "rpfA", hjust = "left") +
-        annotate(geom = "text", x = 16, y = 5.670926, label = "rpfA", hjust = "left") +
-       annotate(geom = "text", x = 17.8, y = 24.702927, label = "pks12", hjust = "left") +
-       annotate(geom = "text", x = 16, y = 12.307589, label = "pks12", hjust = "left") +
-       annotate(geom = "text", x = 16.5, y = 13.671872, label = "Mb2189c", hjust = "left") +
-       annotate(geom = "text", x = 28.6, y = 31.784458, label = "Mb3510c", hjust = "left") +
-     xlim(c(-10,35))
-```
+       annotate(geom = "text", x = 14.3, y = 15.010953, label = "rpfA", hjust = "left") +
+        annotate(geom = "text", x = 15.3, y = 5.2, label = "rpfA", hjust = "left") +
+       annotate(geom = "text", x = 18, y = 26.635492, label = "rpfA", hjust = "left") +
+       annotate(geom = "text", x = 17.3, y = 24.5, label = "pks12", hjust = "left") +
+       annotate(geom = "text", x = 15.1, y = 12, label = "pks12", hjust = "left") +
+       annotate(geom = "text", x = 15.8, y = 13.1, label = "Mb2189c", hjust = "left") +
+       annotate(geom = "text", x = 28.2, y = 31.784458, label = "Mb3510c", hjust = "left") +
+       annotate(geom = "text", x = 17.5, y = 25.5, label = "Mb3510c", hjust = "left") +
+       annotate(geom = "text", x = 22.7, y = 27.335698	, label = "Mb3510c", hjust = "left") +
+     xlim(c(-5,35)) +
+    xlab("Mean Decrease Accuracy") + 
+     ylab("Mean Decrease Impurity")
 
-```{r}
+
 #Species
 sub_data <- subset(mbov_rf.results,class == "Species")
   
@@ -714,13 +718,19 @@ sub_data <- subset(mbov_rf.results,class == "Species")
   geom_point() +
     theme_minimal()+
     scale_color_manual(values = c("gray","black")) +
-    ggtitle("Species") + 
+    ggtitle("A") + 
      annotate(geom = "text", x = 23.7, y = 10.022635, label = "Mb3510c", hjust = "left") +
      annotate(geom = "text", x = 12.9, y = 13.857494, label = "Mb1399c", hjust = "left") + 
      annotate(geom = "text", x = 17.9, y = 7.974693, label = "Mb3510c", hjust = "left") + 
-     annotate(geom = "text", x = 14.9, y = 3.685742, label = "rpfA", hjust = "left") + 
-     xlim(c(-10,28))
-  
+     annotate(geom = "segment", x = 20, y = 2.5, xend = 12.44058, yend = 3.063956) +
+     annotate(geom = "segment", x = 20, y = 5, xend = 13.95354, yend = 3.685742) +
+     annotate(geom = "text", x = 20.4, y = 2.4, label = "rpfA", hjust = "left") + 
+     annotate(geom = "text", x = 20.4, y = 5.2, label = "rpfA", hjust = "left") + 
+     annotate(geom = "segment", x = 5, y = 5, xend = 13.31441, yend = 3.255687) +
+     annotate(geom = "text", x = 4.8, y = 5.2, label = "Mb0403", hjust = "right") +
+     xlim(c(-10,28)) + 
+     xlab("Mean Decrease Accuracy") + 
+     ylab("Mean Decrease Impurity")
    
 #Country
 sub_data <- subset(mbov_rf.results,class == "Country")
@@ -743,18 +753,34 @@ sub_data <- subset(mbov_rf.results,class == "Country")
   geom_point() +
     theme_minimal()+
     scale_color_manual(values = c("gray","black")) +
-    ggtitle("Country") + 
-     annotate(geom = "text", x = 13.8, y = 13.964651, label = "Mb0403", hjust = "left") +
+    ggtitle("B") + 
+     annotate(geom = "text", x = 13.2, y = 13.764651, label = "Mb0403", hjust = "left") +
      annotate(geom = "text", x = 15.3, y = 16.785824, label = "rpfA", hjust = "left") + 
     annotate(geom = "text", x = 11.6, y = 2, label = "rpfA", hjust = "left") + 
       annotate(geom = "text", x = 15.2, y = 21.669909, label = "rpfA", hjust = "left") + 
       annotate(geom = "text", x = 24, y = 34.458077, label = "Mb3510c", hjust = "left") + 
       annotate(geom = "text", x = 29.8, y = 41.599674, label = "Mb3510c", hjust = "left") + 
-      annotate(geom = "text", x = 12.9, y = 20.689603, label = "pks12", hjust = "right") + 
-     xlim(c(-10,35))
+      annotate(geom = "text", x = 13, y = 3.346899, label = "Mb3510c", hjust = "left") +
+      annotate(geom = "text", x = 13.6, y = 21, label = "pks12", hjust = "right") + 
+      annotate(geom = "text", x = 14.2, y = 20.172078, label = "Mb3510c", hjust = "left") + 
+      annotate(geom = "text", x = 12.78591, y = 6.587539, label = "bkdc", hjust = "left") + 
+      annotate(geom = "segment", x = 5, y = 12.5, xend = 10.53773, yend = 15.161801) +
+     annotate(geom = "text", x = 4.8, y = 12.1, label = "Mb1399c", hjust = "right") +
+      annotate(geom = "segment", x = 7.5, y = 14.5, xend = 10.66935, yend = 15.139982) +
+     annotate(geom = "text", x = 7.3, y = 14.5, label = "rpfA", hjust = "right") +
+      annotate(geom = "segment", x = 5, y = 20, xend = 11.01982, yend = 16.291513) +
+     annotate(geom = "text", x = 4.8, y = 20.3, label = "Mb3510c", hjust = "right") +
+      annotate(geom = "segment", x = 6, y = 17.5, xend = 10.85167, yend = 15.985976) +
+     annotate(geom = "text", x = 5.8, y = 17.7, label = "Mb1399c", hjust = "right") +
+     xlim(c(-5,35)) +
+    xlab("Mean Decrease Accuracy") + 
+     ylab("Mean Decrease Impurity")
 ```
+
+
+
 
 ```{r}
 #pick up here tomorrow, make more publication ready
-grid.arrange(a,b,c)
+grid.arrange(a,b,c,ncol = 2)
 ```
