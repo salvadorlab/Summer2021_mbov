@@ -1,8 +1,3 @@
-#Script to create a dataframe that represents a recombination heatmap
-
-#inputs: a list of the sample ids + the GFF file.
-#output: a binary value matrix with the rows being isolates, columns the regions of recombinations
-
 import numpy as np
 import pandas as pd
 import re

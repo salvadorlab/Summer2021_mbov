@@ -1,7 +1,3 @@
-#Noah A. Legall
-#Salvador Lab
-#Description: Run for loop that will submit a submission job for each accession in an accession list
-#Last Update: April 9th 2021
 import sys # use to access arguments
 import os # use in order to call commands from the terminal script is called in
 import time # for time stamps

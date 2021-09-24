@@ -1,17 +1,15 @@
 ---
 title: "Mbovis_HR_analysis"
 author: "Noah Legall"
-date: "6/21/2021"
+start date: "6/21/2021"
 output: html_document
 ---
-
-#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
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## libraries for this analysis
+## Libraries
 
 ```{r}
 library(reshape)
@@ -33,6 +31,7 @@ library(gridExtra)
 setwd("../dependencies/")
 recomb_heat = read.csv("recombination_heatmap.csv",header = TRUE)
 
+#Processing of the gubbins heatmap data
 pre_regions <- as.data.frame(colnames(recomb_heat))
 pre_regions$regions <- gsub("X","",pre_regions$`colnames(recomb_heat)`)
 pre_regions <- subset(pre_regions,pre_regions$regions != "label")
@@ -42,24 +41,14 @@ regions$end <- as.numeric(regions$end)
 regions$coords <- floor((regions$end + regions$start)/2)
 regions <- regions[order(regions$coords),]
 colnames(recomb_heat) <- c("label",regions$coords)
+
+#Regions that are duplicated will be ignored, and the columns will be ordered 
 recomb_heat <- recomb_heat[,!duplicated(colnames(recomb_heat))]
 recomb_heat <- recomb_heat[,order(as.numeric(names(recomb_heat)))]
 
-#unique recombination events omitted 
-#recomb_heat <- recomb_heat[,colSums(data.matrix(recomb_heat)) > 1]
 
-
-regions %>% ggplot(aes(x = coords)) + 
-  geom_point(aes(y = 0),color = "red", size = 3) + 
-  theme(axis.title.y=element_blank(),
-           axis.text.y=element_blank(), 
-           axis.ticks.y=element_blank(),
-        panel.background = element_blank()) +
-  xlim(0, 4.4e+06)
-
-
+#Create the heatmap using ggplot2
 recomb.melted = melt(recomb_heat, id="label")
-#head(recomb.melted)
 ggplot(recomb.melted, aes(variable,label,fill=factor(value))) + 
   geom_tile() + 
   scale_fill_manual(label=c("absent","present"),values=c("white","black")) +
@@ -75,158 +64,50 @@ ggplot(recomb.melted, aes(variable,label,fill=factor(value))) +
   
 ```
 
-## Stats on genomic regions impacted by HR
-```{r}
-recomb_heat_nolab <-recomb_heat[,-which(names(recomb_heat) %in% c("label"))]
-
-recomb_heat_nolab$num_hr <- rowSums(recomb_heat_nolab)
-num_genomes <- as.data.frame(colSums(recomb_heat_nolab))
-colnames(num_genomes)[1] <- "num"
-
-a <- recomb_heat_nolab %>% ggplot(aes(x=num_hr)) +
-  geom_histogram(binwidth=1) + 
-  labs(tag = "A")
-
-b <- num_genomes %>% filter(num < 700)  %>% ggplot(aes(x=num)) +
-  geom_histogram(binwidth=10) + 
-  labs(tag = "B")
-
-grid.arrange(a,b, nrow = 1)
-```
-## Genes impacted by HR ()
-
-```{r}
-setwd("../dependencies/")
-recomb_genes <- read.table("recomb_gene.tbl",col.names = paste0("V",seq_len(10)), fill=TRUE)
-
-
-# Need to develop a script for the percentage
-#hr_perc <-read.csv("hr_percentage.csv")
-
-region <- gsub(".bed","",gsub("_","-",recomb_genes$V1))
-gene_name <- gsub(";gbkey","",gsub("Name=","",stringr::str_extract(string = recomb_genes$V4,pattern = "Name=.*;gbkey")))
-hr_impact.tbl <- data.frame(region,gene_name)
-
-hr_impact.tbl %>% unique() %>% gt( ) %>% tab_header(title = "Mycobacterium bovis genes impacted by homologous recombination") 
-write.csv(hr_impact.tbl,"mbov_hr_impact.csv")
-
-```
-
-## Genes that are impacted by HR per group 
-
-```{r}
-#subset the heatmap by country, species, population structure
-accession_meta <- read.csv("../dependencies/filtered_isolate_list.csv", header = TRUE, stringsAsFactors = FALSE)
-
-#change labels 
-old_bov <- c("BOVINE-Michigan","BOVINE-UK","BOVINE-NZ")
-for(i in 1:length(old_bov)){
-  accession_meta$Species <- gsub(old_bov[i],"BOVINE",accession_meta$Species)
-}
-
-old_cerv <- c("WTD-Michigan","ELK-Michigan","CERVINE-NZ")
-for(i in 1:length(old_cerv)){
-  accession_meta$Species <- gsub(old_cerv[i],"CERVINE",accession_meta$Species)
-}
-
-accession_meta$Species <- gsub("-UK","",accession_meta$Species)
-accession_meta$Species <- gsub("-NZ","",accession_meta$Species)
-accession_meta$Species <- gsub("-US","",accession_meta$Species)
-
-
-
-recomb_extend <- recomb_heat %>% left_join(accession_meta,by = c("label" = "Sample")) %>% left_join(plot.df, by = c("label" = "id")) %>% drop_na()
-gene_table <- hr_perc %>% select(gene,Beginning,End)
-
-df <- data.frame(matrix(ncol = 3, nrow = 0))
-
-for (group in 1:length(unique(recomb_extend$Country))){
-current <- unique(recomb_extend$Country)[group] 
-result <- recomb_extend %>% filter(Country == current) %>% select(-c(label,Species,Country,Host)) %>% select_if(~sum(.) >= 1)
-is_gene_impacted <- data.frame(matrix(ncol = 3, nrow = 0))
-#coordinates impacted will be columns with something other than zero
-#if the column is in between a gene's region than report that gene as impacted in that group
-imp_col <- as.numeric(colnames(result))
-is_gene_impacted <- as.data.frame(ifelse(sapply(imp_col, function(p) any(gene_table$End >= p & gene_table$Beginning <= p)),gene_table$gene, "none"))
-
-is_gene_impacted$V1 <- unique(recomb_extend$Country)[group] 
-is_gene_impacted$V2 <- "Country"
-
-df <- rbind(df,is_gene_impacted)
-}
-
-for (group in 1:length(unique(recomb_extend$Species))){
-current <- unique(recomb_extend$Species)[group] 
-result <- recomb_extend %>% filter(Species == current) %>% select(-c(label,Species,Country,Host)) %>% select_if(~sum(.) >= 1)
-is_gene_impacted <- data.frame(matrix(ncol = 3, nrow = 0))
-#coordinates impacted will be columns with something other than zero
-#if the column is in between a gene's region than report that gene as impacted in that group
-imp_col <- as.numeric(colnames(result))
-is_gene_impacted <- as.data.frame(ifelse(sapply(imp_col, function(p) any(gene_table$End >= p & gene_table$Beginning <= p)),gene_table$gene, "none"))
-
-is_gene_impacted$V1 <- unique(recomb_extend$Species)[group] 
-is_gene_impacted$V2 <- "Species"
-df <- rbind(df,is_gene_impacted)
-}
-
-for (group in 1:length(unique(as.factor(recomb_extend$fastbaps)))){
-current <- unique(as.factor(recomb_extend$fastbaps))[group] 
-
-result <- recomb_extend %>% filter(as.factor(recomb_extend$fastbaps) == current) %>% select(-c(label,Species,Country,Host)) %>% select_if(~sum(.) >= 1)
-
-is_gene_impacted <- data.frame(matrix(ncol = 3, nrow = 0))
-#coordinates impacted will be columns with something other than zero
-#if the column is in between a gene's region than report that gene as impacted in that group
-imp_col <- as.numeric(colnames(result))
-
-is_gene_impacted <- as.data.frame(ifelse(sapply(imp_col, function(p) any(gene_table$End >= p & gene_table$Beginning <= p)),gene_table$gene, "none"))
-
-is_gene_impacted$V1 <- unique(as.factor(recomb_extend$fastbaps))[group] 
-is_gene_impacted$V2 <- "PopStructure"
-df <- rbind(df,is_gene_impacted)
-}
-
-colnames(df) <- c("gene","class","group")
-#come back, do this for all the groups
-
-
-```
-
-```{r}
-clean_df <- df %>% group_by(class) %>% drop_na() %>% filter(gene != "none") 
-
-for(i in 1:length(unique(clean_df$class))){
-  current_class <- unique(clean_df$class)[i]
-  
-  hr_list <- clean_df %>% filter(class == current_class) %>% unique()
-  print(paste(c(current_class,hr_list$gene), collapse = ","))
-  
-  
-}
-```
-
 ## HR stats
 
 ```{r}
 setwd("../dependencies/")
+
+#Generate histograms to detail the characteristics of predicted HR regions from Gubbins.
+recomb_heat_nolab <-recomb_heat[,-which(names(recomb_heat) %in% c("label"))]
+recomb_heat_nolab$num_hr <- rowSums(recomb_heat_nolab)
+num_genomes <- as.data.frame(colSums(recomb_heat_nolab))
+colnames(num_genomes)[1] <- "num"
+
+
 hr_stats <- read.csv("recombination_stats.csv")
+
 import_gg <- hr_stats %>% ggplot(aes(x=Import.Length,)) + 
-  geom_histogram(binwidth = 10,fill = "steelblue") +
+  geom_histogram(binwidth = 10,fill = "gray") +
   theme_minimal() +
-  xlab("length of homologous recombination region") + labs(tag = "A")
+  xlab("HR length") + labs(tag = "A")
 
 snp_size_gg <- hr_stats %>% ggplot(aes(x=No..SNPs,)) + 
-  geom_histogram(binwidth = 1,fill = "steelblue") +
+  geom_histogram(binwidth = 1,fill = "gray") +
   theme_minimal() +
-  xlab("# SNPs within a homologous recombination region") + labs(tag = "B")
+  xlab("SNPs per HR region") + labs(tag = "B")
 
-grid.arrange(import_gg,snp_size_gg,nrow=1)
+a <- recomb_heat_nolab %>% ggplot(aes(x=num_hr)) +
+  geom_histogram(binwidth=1,fill = "gray") + 
+  theme_minimal() +
+  xlab("HR per isolate") + labs(tag = "C")
+
+b <- num_genomes %>% filter(num < 700)  %>% ggplot(aes(x=num)) +
+  geom_histogram(binwidth=10,fill = "gray") + 
+  theme_minimal() +
+  xlab("isolates with a specifc HR region") + labs(tag = "D")
+  labs(tag = "B")
+
+
+grid.arrange(import_gg,snp_size_gg,a,b,nrow=2)
 
 ```
 
 ## Population Structure
 
 ```{r}
+#Utilize fastBAPS to infer clustering of isolates given the SNP data. 
 mbov_snp <- "../dependencies/mbov_snp.fasta"
 sparse.data <- import_fasta_sparse_nt(mbov_snp)
 sparse.data <- optimise_prior(sparse.data, type = "optimise.symmetric")
@@ -237,20 +118,20 @@ iqtree <- phytools::read.newick("../dependencies/mbov_align.contree")
 plot.df <- data.frame(id = colnames(sparse.data$snp.matrix), fastbaps = best.partition, 
     stringsAsFactors = FALSE)
 
+#Metadata file presented to isolate_dat
 isolate_dat = read.csv("../dependencies/filtered_isolate_list.csv",header = TRUE)
-
 isolate_dat <- isolate_dat %>% left_join(plot.df,by=c("Sample"="id"))
 
+#Quick visualization
 gg <- ggtree(iqtree)
 pop_clust <- facet_plot(gg, panel = "fastbaps", data = plot.df, geom = geom_tile, aes(x = fastbaps), color = "blue")
-
 pop_clust
 ```
 
 
 ## Phylogeny
-
 ```{r}
+# Tree developed from SNP alignment of M. bovis alignment 
 mbov_tree <- read.newick("../dependencies/mbov_align.contree")
 
 
@@ -274,6 +155,7 @@ mbov_tree <- root(mbov_tree,"LT708304.1")
 mbov_tree <- drop.tip(mbov_tree,"LT708304.1")
 mbov <- ggtree(mbov_tree) 
 
+#Generate the data that will become rings that will surround the phylogeny
 baps_heat <- as.data.frame(as.factor(isolate_dat$fastbaps))
 rownames(baps_heat) <- isolate_dat$Sample
 
@@ -285,64 +167,14 @@ rownames(country_heat) <- isolate_dat$Sample
 
 
 #color palettes
-
 cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
 cb_col <- colorRampPalette(cbPalette)
-
 species_col <- palette.colors(7)
 country_col <- hcl.colors(3,"SunsetDark")
 
 
 
-
-mbov_node_support <- mbov %<+% isolate_dat + 
-  geom_point2(aes(label=label, subset = !is.na(as.numeric(label)) & as.numeric(label) <= 100 & as.numeric(label) > 75), color = "black",size = 0.85) +
-  geom_point2(aes(label=label, subset = !is.na(as.numeric(label)) & as.numeric(label) <= 75 & as.numeric(label) > 50), color = "#850000",size = 0.85) + 
-  geom_point2(aes(label=label, subset = !is.na(as.numeric(label)) & as.numeric(label) <= 50), color = "red", size = 0.85) + 
-  geom_point2(aes(label=label, subset = isTip, color = Species, shape = Country), size = 2) + scale_color_manual(values = species_col)
-final_tree <- gheatmap(mbov_node_support,baps_heat,width = 0.1, colnames = FALSE, legend_title = "hey") + scale_fill_manual(values = cb_col(8))   
-
-
-
-#edit color palletes
-#add the legends neatly (powerpoint)
-
-```
-
-
-```{r}
-# 6. Node support, circular, no branch lengths, 3 heatmaps,
-
-#Find a way to color the internal nodes differently
-
-#color palettes
-
-cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
-cb_col <- colorRampPalette(cbPalette)
-
-species_col <- hcl.colors(7, "RdBu")
-country_col <- hcl.colors(3,"Plasma")
-
-x <- c(rep(NA,700),as.numeric(mbov_tree$node.label))
-col <- cut(x, breaks=c(0,50,75,100))
-col <- factor(col, levels=rev(levels(col)))
-col <- factor(col, labels=c("76-100%","51-75%","0-50%"))
-
-mbov <- ggtree(mbov_tree, layout = "circular", branch.length = "none")
-mbov_node_support <- mbov %<+% isolate_dat + 
-  geom_point2(aes(label=label, subset = !is.na(as.numeric(label)) & as.numeric(label) <= 100 & as.numeric(label) > 75), color = "black",size = 0.85, show.legend = TRUE) +
-  geom_point2(aes(label=label, subset = !is.na(as.numeric(label)) & as.numeric(label) <= 75 & as.numeric(label) > 50), color = "grey50",size = 0.85, show.legend = TRUE) + 
-  geom_point2(aes(label=label, subset = !is.na(as.numeric(label)) & as.numeric(label) <= 50), color = "grey", size = 0.85, show.legend = TRUE)
-t1 <- gheatmap(mbov_node_support,baps_heat,width = 0.1, colnames = FALSE, legend_title = "Population Cluster") + scale_fill_manual(values = cb_col(8), name = "Population Cluster")
-t2 <- t1 + new_scale_fill()
-t2_1 <- gheatmap(t2,species_heat,offset = 5, width = 0.1, colnames = FALSE, legend_title = "Species") +  scale_fill_manual(values = species_col, name = "Species")
-t3 <- t2_1 + new_scale_fill()
-mbov_final <- gheatmap(t3,country_heat,offset = 10, width = 0.1, colnames = FALSE, legend_title = "Country") + 
-  scale_fill_manual(values = country_col, name = "Country")
-```
-
-```{r}
-
+#ggtree to label nodes based on bootstrap support
 mbov <- ggtree(mbov_tree, layout = "circular", branch.length = "none")
 mbov_node_support <- mbov %<+% isolate_dat + 
   geom_point2(aes(color=col), show.legend = TRUE) + 
@@ -361,6 +193,7 @@ mbov_final
 
 ##Boxplots
 ```{r}
+# Describe the distributions of HR regions per species.
 import_num <- read.csv("../dependencies/isolate_import_num.csv",header = TRUE)
 accession_meta <- read.csv("../dependencies/filtered_isolate_list.csv", header = TRUE, stringsAsFactors = FALSE)
 import_num <- import_num %>% left_join(isolate_dat,by = c("label"= "Sample"))
@@ -369,113 +202,64 @@ import_num$X0 <- recomb_heat_nolab$num_hr
 country_no_lookup <- import_num %>% group_by(Country) %>% summarise(n=n()) %>% mutate(country_ext = paste0(Country," (",n,")"))
 import_num <- import_num %>% left_join(country_no_lookup,by = c("Country"))
 country_box <- ggplot(import_num, aes(x=country_ext, y=X0, fill=Country)) + 
-  geom_boxplot() +
+  geom_boxplot(color="black",fill="gray") +
   labs(y="# HR regions") +
-    labs(tag = "A") + 
+    labs(tags = "A") + 
   theme(axis.text = element_text(size = 15),
-        axis.text.y = element_text(size = 10),
-        axis.text.x = element_text(size = 10),
+        axis.text.y = element_text(size = 14),
+        axis.text.x = element_text(size = 14),
         axis.title.y = element_text(size = 15),
         axis.title.x = element_text(size = 15),
         panel.background = element_rect(fill = "white"),
         panel.grid.major = element_blank(), 
         panel.grid.minor = element_blank(),
         legend.position = "none",
-        plot.title = element_text(hjust = 0.5, size = 15)) +
+        plot.title = element_text(size = 15,face = "bold")) +
     xlab("Country") +
-    coord_flip() +  
-  scale_fill_grey()
+    coord_flip() 
 
 
 species_no_lookup <- import_num %>% group_by(Species) %>% summarise(n=n()) %>% mutate(species_ext = paste0(Species," (",n,")"))
 import_num <- import_num %>% left_join(species_no_lookup,by = c("Species"))
 species_box <- ggplot(subset(import_num,import_num$Species != "STOAT"), aes(x=species_ext, y=X0, fill=Species)) + 
-  geom_boxplot() + 
+  geom_boxplot(color="black",fill="gray") +
   labs(y="# HR regions") +
-    labs(tag = "B") + 
+    labs(tags = "B") + 
   theme(axis.text = element_text(size = 15),
-        axis.text.y = element_text(size = 10),
-        axis.text.x = element_text(size = 10),
+        axis.text.y = element_text(size = 14),
+        axis.text.x = element_text(size = 14),
         axis.title.y = element_text(size = 15),
         axis.title.x = element_text(size = 15),
         panel.background = element_rect(fill = "white"),
         panel.grid.major = element_blank(), 
         panel.grid.minor = element_blank(),
         legend.position = "none",
-        plot.title = element_text(hjust = 0.5, size = 15)) +
+        plot.title = element_text(size = 15,face = "bold")) +
     xlab("Species") +
-    coord_flip() +  
-  scale_fill_grey()
+    coord_flip() 
 
 cluster_no_lookup <- import_num %>% group_by(fastbaps) %>% summarise(n=n()) %>% mutate(cluster_ext = paste0(fastbaps," (",n,")"))
 import_num <- import_num %>% left_join(cluster_no_lookup,by = c("fastbaps"))
 cluster_box <- ggplot(import_num, aes(x=cluster_ext, y=X0, fill=factor(fastbaps))) + 
-  geom_boxplot() + 
+  geom_boxplot(color="black",fill="gray") +
   labs(y="# HR regions") + 
-  labs(tag = "C") + 
-    theme(axis.text = element_text(size = 15),
-        axis.text.y = element_text(size = 10),
-        axis.text.x = element_text(size = 10),
+  labs(tags = "C") + 
+  theme(axis.text = element_text(size = 15),
+        axis.text.y = element_text(size = 14),
+        axis.text.x = element_text(size = 14),
         axis.title.y = element_text(size = 15),
         axis.title.x = element_text(size = 15),
         panel.background = element_rect(fill = "white"),
         panel.grid.major = element_blank(), 
         panel.grid.minor = element_blank(),
         legend.position = "none",
-        plot.title = element_text(hjust = 0.5, size = 15)) +
+        plot.title = element_text(size = 15,face = "bold")) +
     xlab("Clusters") +
-    coord_flip() +  
-  scale_fill_grey() 
+    coord_flip() 
 grid.arrange(country_box,species_box,cluster_box,nrow = 2)
 
 
 ```
-
-## U Test 
-```{r}
-species_utest <- as.data.frame(unique(expand.grid(import_num[import_num$Species != "STOAT",]$Species,import_num[import_num$Species != "STOAT",]$Species)))
-species_utest$value <- NA
-for (i in 1:nrow(species_utest)){
-  dist1 <- subset(import_num,Species == species_utest[i,1] )$X0
-  dist2 <- subset(import_num,Species == species_utest[i,2] )$X0
-  print(tryCatch(species_utest[i,3] <- wilcox.test(dist1,dist2,alternative = "two.sided")$p.value,
-                 error = function(e) species_utest[i,3] <- "NA" ))
-}
-
-country_utest <- as.data.frame(unique(expand.grid(import_num$Country,import_num$Country)))
-country_utest$value <- NA
-for (i in 1:nrow(country_utest)){
-  dist1 <- subset(import_num,Country == country_utest[i,1])$X0
-  dist2 <- subset(import_num,Country == country_utest[i,2])$X0
-  print(tryCatch(country_utest[i,3] <- wilcox.test(dist1,dist2,alternative = "two.sided")$p.value,
-                 error = function(e) country_utest[i,3] <- "NA" ))
-}
-
-cluster_utest <- as.data.frame(unique(expand.grid(import_num$fastbaps,import_num$fastbaps)))
-cluster_utest$value <- NA
-for (i in 1:nrow(cluster_utest)){
-  dist1 <- subset(import_num,fastbaps == cluster_utest[i,1])$X0
-  dist2 <- subset(import_num,fastbaps == cluster_utest[i,2])$X0
-  print(tryCatch(cluster_utest[i,3] <- wilcox.test(dist1,dist2,alternative = "two.sided")$p.value,
-                 error = function(e) cluster_utest[i,3] <- "NA" ))
-}
-
-```
-#Visualize 
-```{r}
-a <- ggplot(species_utest, aes(Var1,Var2,fill=value)) + 
-  geom_tile() 
-
-b <- ggplot(country_utest, aes(Var1,Var2,fill=value)) + 
-  geom_tile() 
-
-c <- ggplot(cluster_utest, aes(Var1,Var2,fill=value)) + 
-  geom_tile() 
-
-p <- grid.arrange(species_box,a,country_box,b,cluster_box,c,nrow=3)
-  
-```
-
 
 ## Manhattan Plots for Selective Sweep Regions
 ```{r}
@@ -529,9 +313,6 @@ op_gg <- op_dat %>% filter(class == current) %>% ggplot(aes(x=floor(as.numeric(c
   ggtitle(current)
 plot(op_gg)
 
-# we want to find the genomic sites that are significantly higher than expected and cross reference that with M. bovis genes - will be the work of tomorrow. 
-
-
 }
 
 op_dat  %>% ggplot(aes(x=floor(as.numeric(coords)),y=omega)) + geom_point() +
@@ -539,14 +320,12 @@ op_dat  %>% ggplot(aes(x=floor(as.numeric(coords)),y=omega)) + geom_point() +
   xlab("genomic position") +
   ylab("omega value") + facet_wrap(~ class, ncol = 4)
 
-#population cluster 2: genes affected: PPE55b, PPE55a, ilvX, Mb3540c
-#population cluster 4: ilvX, PE_PGRS55, fadD18, PE_PGRS57
 ```
 
 ## Regions with significant differences in selective sweeps
 
 ```{r}
-#compute avg. for each class
+#We are interested in the regions that are most surprising. 
 op_dat <- rbind(op_US,op_UK,op_NZ,op_badger,op_deer,op_possum,op_1,op_2,op_3,op_4,op_5,op_6,op_7,op_8)
 op_dat$coords <- floor(as.numeric(rownames(op_dat)))
 colnames(op_dat)[1] <- "omega"
@@ -555,11 +334,8 @@ op_dat_extend <- op_dat %>% left_join(avg_lookup,by="class") %>%
   mutate(zscore = ((omega - avg)/std)) %>% mutate(p_value = pnorm(zscore, mean = avg, sd = std, lower.tail = FALSE)) %>% mutate(pval.adj = p.adjust(p_value, method='BH'))
 op_dat_extend$log_p <- (-1*log10(op_dat_extend$p_value))
 
-#op_dat_extend %>% select(omega,class,coords,p_value) %>% filter(class == "NZ" | class == "possum" | class == "7") %>% ggplot(aes(x=p_value)) + geom_histogram()
-
+#bonferroni pvalue correction - combat multiple hypothesis testing.
 bonferroni_corrected = 0.05/5000
-ss_out.tbl <- op_dat_extend %>% dplyr::select(omega,class,coords,pval.adj,log_p) %>% filter(pval.adj < 0.05 & omega > 50)
-write.csv(ss_out.tbl, "../dependencies/mbov_ss.csv")
 
 for (group in 1:length(unique(op_dat$class))){
 
@@ -573,34 +349,28 @@ op_gg <- op_dat_extend %>% filter(class == current) %>% ggplot(aes(x=floor(as.nu
   ggtitle(current)
 plot(op_gg) }
 
-op_fig <- op_dat_extend %>% filter(class == "2" | class == "4") %>% mutate(Color = ifelse(log_p > 6.3, "black", "gray")) %>% ggplot(aes(x=floor(as.numeric(coords)),y=log_p,color=Color)) + geom_point() +
+op_fig <- op_dat_extend %>% filter(class == "2" ) %>% mutate(Color = ifelse(log_p > 6.3, "black", "gray")) %>% ggplot(aes(x=floor(as.numeric(coords)),y=log_p,color=Color)) + geom_point() +
   theme_minimal() + 
   theme(axis.title = element_text(size = 15)) +
   xlab("genomic position") +
   ylab("-log10(P)") + 
   scale_color_identity() + 
-facet_wrap(~ class, ncol = 3) 
-# Should we just do this based off of a p-value threshold?
-# https://academic.oup.com/g3journal/article/11/2/jkaa056/6080665
+  ylim(c(0,130)) +
+  xlim(c(3.6e6,4e6))
+
 ```
 
-## modeling of hr 
+## Random Forest Analysis 
 
 ```{r}
-# try to get this running tomorrow
-#recomb_heat_nolab$label <- recomb_heat$label
-recomb_extend <- recomb_heat %>% left_join(accession_meta,by = c("label" = "Sample")) %>% left_join(plot.df, by = c("label" = "id")) %>% drop_na()
-glm(data = as.numeric(recomb_heat_nolab), recomb_extend$Species ~ . , family = "binomial")
-```
-
-```{r}
+#Initialize the RF models
+set.seed(1)
 recomb_heat_nolab <-recomb_heat[,-which(names(recomb_heat) %in% c("label"))]
 colnames(recomb_heat_nolab) <- paste0("V",colnames(recomb_heat_nolab))
 
 recomb_heat_nolab$Species <- factor(recomb_extend$Species)
-mbov_rf <- randomForest(Species ~ .,data = recomb_heat_nolab,importance=TRUE, ntree=1000)
+mbov_rf <- randomForest(Species ~ .,data = recomb_heat_nolab,importance=TRUE, ntree=10000)
 
-#importance(mbov_rf)
 species_rf <- as.data.frame(varImpPlot(mbov_rf))
 species_rf$class <- "Species"
 
@@ -608,7 +378,7 @@ recomb_heat_nolab <-recomb_heat[,-which(names(recomb_heat) %in% c("label"))]
 colnames(recomb_heat_nolab) <- paste0("V",colnames(recomb_heat_nolab))
 
 recomb_heat_nolab$Country <- factor(recomb_extend$Country)
-mbov_rf <- randomForest(Country ~ .,data = recomb_heat_nolab,importance=TRUE, ntree=1000)
+mbov_rf <- randomForest(Country ~ .,data = recomb_heat_nolab,importance=TRUE, ntree=10000)
 
 country_rf <- as.data.frame(varImpPlot(mbov_rf))
 country_rf$class <- "Country"
@@ -617,7 +387,7 @@ recomb_heat_nolab <-recomb_heat[,-which(names(recomb_heat) %in% c("label"))]
 colnames(recomb_heat_nolab) <- paste0("V",colnames(recomb_heat_nolab))
 
 recomb_heat_nolab$Clusters <- factor(recomb_extend$fastbaps)
-mbov_rf <- randomForest(Clusters ~ .,data = recomb_heat_nolab,importance=TRUE, ntree=1000)
+mbov_rf <- randomForest(Clusters ~ .,data = recomb_heat_nolab,importance=TRUE, ntree=10000)
 
 cluster_rf <- as.data.frame(varImpPlot(mbov_rf))
 cluster_rf$class <- "Population Cluster"
@@ -628,6 +398,7 @@ mbov_rf.results <- rbind(species_rf,country_rf,cluster_rf)
 
 
 ```{r}
+#Compute Variable importance for each HR region
 for(i in 1:length(unique(mbov_rf.results$class))){
   current = unique(mbov_rf.results$class)[i]
   sub_data <- subset(mbov_rf.results,class == current)
@@ -677,25 +448,38 @@ sub_data <- subset(mbov_rf.results,class == "Population Cluster")
   
   sub_data$importance <- ifelse(sub_data$MeanDecreaseAccuracy > threshold1 & sub_data$MeanDecreaseGini > threshold2, "TRUE", "FALSE")
   
-     c <- sub_data %>% ggplot(aes(x=MeanDecreaseAccuracy, y=MeanDecreaseGini,color = importance)) +
+    c <- sub_data %>% ggplot(aes(x=MeanDecreaseAccuracy, y=MeanDecreaseGini,color = importance)) +
   geom_point() +
     theme_minimal()+
     scale_color_manual(values = c("gray","black")) +
     ggtitle("C") + 
-       annotate(geom = "text", x = 15.2, y = 16.198440, label = "Mb0403", hjust = "left") +
-       annotate(geom = "text", x = 14.3, y = 15.010953, label = "rpfA", hjust = "left") +
-        annotate(geom = "text", x = 15.3, y = 5.2, label = "rpfA", hjust = "left") +
-       annotate(geom = "text", x = 18, y = 26.635492, label = "rpfA", hjust = "left") +
-       annotate(geom = "text", x = 17.3, y = 24.5, label = "pks12", hjust = "left") +
-       annotate(geom = "text", x = 15.1, y = 12, label = "pks12", hjust = "left") +
-       annotate(geom = "text", x = 15.8, y = 13.1, label = "Mb2189c", hjust = "left") +
-       annotate(geom = "text", x = 28.2, y = 31.784458, label = "Mb3510c", hjust = "left") +
-       annotate(geom = "text", x = 17.5, y = 25.5, label = "Mb3510c", hjust = "left") +
-       annotate(geom = "text", x = 22.7, y = 27.335698	, label = "Mb3510c", hjust = "left") +
-     xlim(c(-5,35)) +
-    xlab("Mean Decrease Accuracy") + 
-     ylab("Mean Decrease Impurity")
+       annotate(geom = "segment", x = 43.8, y = 14.791974, xend = 60, yend = 17) +
+       annotate(geom = "text", x = 60, y = 18, label = "Mb0403", hjust = "left") +
+       annotate(geom = "segment", x = 44.44055, y = 15.404605, xend = 30, yend = 16.5) +
+       annotate(geom = "text", x = 30, y = 17.5, label = "rpfA", hjust = "right") +
+       annotate(geom = "segment", x = 43.26362, y = 14.88607, xend = 20, yend = 13) +
+        annotate(geom = "text", x = 20, y = 13, label = "rpfA", hjust = "right") +
+       annotate(geom = "text", x = 48, y = 5.5, label = "rpfA", hjust = "left") +
+       annotate(geom = "segment", x = 40, y = 25, xend = 52.50778, yend = 23.588206) +
+       annotate(geom = "text", x = 40, y = 26, label = "rpfA", hjust = "right") +
+       annotate(geom = "text", x = 55, y = 26, label = "pks12", hjust = "left") +
+       annotate(geom = "text", x = 49, y = 11, label = "pks12", hjust = "left") +
+       annotate(geom = "text", x = 50, y = 13, label = "Mb2189c", hjust = "left") +
+       annotate(geom = "text", x = 40, y = 6.366, label = "bkdc", hjust = "right") +
+       annotate(geom = "text", x = 55, y = 23.451064, label = "Mb3510c", hjust = "left") +
+       annotate(geom = "text", x = 73, y = 29.072326	, label = "Mb3510c", hjust = "left") +
+       annotate(geom = "text", x = 95, y = 34.504183	, label = "Mb3510c", hjust = "left") +
+        theme(
+    axis.title = element_text(size = 15),
+    plot.title = element_text(size = 15, face = "bold")
+  ) +
+         labs(color = "Passes Threshold") +
+       xlim(c(-10,120)) +
+    xlab("MDA") + 
+     ylab("MDI") 
+```
 
+```{r}
 
 #Species
 sub_data <- subset(mbov_rf.results,class == "Species")
@@ -719,19 +503,26 @@ sub_data <- subset(mbov_rf.results,class == "Species")
     theme_minimal()+
     scale_color_manual(values = c("gray","black")) +
     ggtitle("A") + 
-     annotate(geom = "text", x = 23.7, y = 10.022635, label = "Mb3510c", hjust = "left") +
-     annotate(geom = "text", x = 12.9, y = 13.857494, label = "Mb1399c", hjust = "left") + 
-     annotate(geom = "text", x = 17.9, y = 7.974693, label = "Mb3510c", hjust = "left") + 
-     annotate(geom = "segment", x = 20, y = 2.5, xend = 12.44058, yend = 3.063956) +
-     annotate(geom = "segment", x = 20, y = 5, xend = 13.95354, yend = 3.685742) +
-     annotate(geom = "text", x = 20.4, y = 2.4, label = "rpfA", hjust = "left") + 
-     annotate(geom = "text", x = 20.4, y = 5.2, label = "rpfA", hjust = "left") + 
-     annotate(geom = "segment", x = 5, y = 5, xend = 13.31441, yend = 3.255687) +
-     annotate(geom = "text", x = 4.8, y = 5.2, label = "Mb0403", hjust = "right") +
-     xlim(c(-10,28)) + 
-     xlab("Mean Decrease Accuracy") + 
-     ylab("Mean Decrease Impurity")
-   
+     annotate(geom = "text", x = 55, y = 7.426242, label = "Mb3510c", hjust = "left") +
+     annotate(geom = "text", x = 73, y = 10.293916, label = "Mb3510c", hjust = "left") + 
+     annotate(geom = "segment", x = 40.79471, y = 3.300782, xend = 55, yend = 4.5) +
+     annotate(geom = "text", x = 56, y = 4.8, label = "rpfA", hjust = "left") + 
+     annotate(geom = "segment", x = 41.3785, y = 3.279978, xend = 50, yend = 2.3) +
+     annotate(geom = "text", x = 51, y = 2.1, label = "rpfA", hjust = "left") + 
+     annotate(geom = "segment", x = 41.90512, y = 3.424511, xend = 30, yend = 4) +
+     annotate(geom = "text", x = 29, y = 4.2, label = "Mb0403", hjust = "right") +
+     xlim(c(-27,85)) + 
+     theme(
+    axis.title = element_text(size = 15),
+    plot.title = element_text(size = 15, face = "bold")
+  ) +
+         labs(color = "Passes Threshold") +
+     xlab("MDA") + 
+     ylab("MDI")
+
+```
+
+```{r}
 #Country
 sub_data <- subset(mbov_rf.results,class == "Country")
   
@@ -754,33 +545,28 @@ sub_data <- subset(mbov_rf.results,class == "Country")
     theme_minimal()+
     scale_color_manual(values = c("gray","black")) +
     ggtitle("B") + 
-     annotate(geom = "text", x = 13.2, y = 13.764651, label = "Mb0403", hjust = "left") +
-     annotate(geom = "text", x = 15.3, y = 16.785824, label = "rpfA", hjust = "left") + 
-    annotate(geom = "text", x = 11.6, y = 2, label = "rpfA", hjust = "left") + 
-      annotate(geom = "text", x = 15.2, y = 21.669909, label = "rpfA", hjust = "left") + 
-      annotate(geom = "text", x = 24, y = 34.458077, label = "Mb3510c", hjust = "left") + 
-      annotate(geom = "text", x = 29.8, y = 41.599674, label = "Mb3510c", hjust = "left") + 
-      annotate(geom = "text", x = 13, y = 3.346899, label = "Mb3510c", hjust = "left") +
-      annotate(geom = "text", x = 13.6, y = 21, label = "pks12", hjust = "right") + 
-      annotate(geom = "text", x = 14.2, y = 20.172078, label = "Mb3510c", hjust = "left") + 
-      annotate(geom = "text", x = 12.78591, y = 6.587539, label = "bkdc", hjust = "left") + 
-      annotate(geom = "segment", x = 5, y = 12.5, xend = 10.53773, yend = 15.161801) +
-     annotate(geom = "text", x = 4.8, y = 12.1, label = "Mb1399c", hjust = "right") +
-      annotate(geom = "segment", x = 7.5, y = 14.5, xend = 10.66935, yend = 15.139982) +
-     annotate(geom = "text", x = 7.3, y = 14.5, label = "rpfA", hjust = "right") +
-      annotate(geom = "segment", x = 5, y = 20, xend = 11.01982, yend = 16.291513) +
-     annotate(geom = "text", x = 4.8, y = 20.3, label = "Mb3510c", hjust = "right") +
-      annotate(geom = "segment", x = 6, y = 17.5, xend = 10.85167, yend = 15.985976) +
-     annotate(geom = "text", x = 5.8, y = 17.7, label = "Mb1399c", hjust = "right") +
-     xlim(c(-5,35)) +
-    xlab("Mean Decrease Accuracy") + 
-     ylab("Mean Decrease Impurity")
+      annotate(geom = "segment", x = 42.78615, y = 15.436363, xend = 62.5, yend = 15) +
+     annotate(geom = "text", x = 63, y = 15, label = "Mb0403", hjust = "left") +
+     annotate(geom = "text", x = 43, y = 14, label = "rpfA", hjust = "left") + 
+    annotate(geom = "text", x = 46, y = 18, label = "rpfA", hjust = "left") + 
+      annotate(geom = "text", x = 35, y = 2, label = "rpfA", hjust = "left") + 
+      annotate(geom = "text", x = 47, y = 21.347377, label = "rpfA", hjust = "left") + 
+      annotate(geom = "text", x = 43, y = 23, label = "pks12", hjust = "right")  + 
+      annotate(geom = "text", x = 36, y = 7, label = "bkdc", hjust = "left") + 
+     annotate(geom = "text", x = 90, y = 43.319627, label = "Mb3510c", hjust = "right") +
+      annotate(geom = "text", x = 67, y = 30.559217, label = "Mb3510c", hjust = "right") +
+      annotate(geom = "text", x = 44, y = 19.5, label = "Mb3510c", hjust = "right") +
+      annotate(geom = "text", x = 32, y = 16, label = "Mb3510c", hjust = "right") +
+      annotate(geom = "text", x = 43, y = 3.299762, label = "Mb3510c", hjust = "left") +
+      theme(
+    axis.title = element_text(size = 15),
+    plot.title = element_text(size = 15, face = "bold")
+  ) +
+         labs(color = "Passes Threshold") +
+     xlab("MDA") + 
+     ylab("MDI")
 ```
 
-
-
-
 ```{r}
-#pick up here tomorrow, make more publication ready
 grid.arrange(a,b,c,ncol = 2)
 ```

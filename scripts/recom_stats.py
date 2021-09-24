@@ -1,8 +1,3 @@
-#Script to gather stats on recombination GFF file
-
-#inputs: gubbins recombination gff file
-#output: stats from the file, length of import, no. of snps, also output the percentage of the genome affected by recombination
-
 import numpy as np
 import pandas as pd
 import re

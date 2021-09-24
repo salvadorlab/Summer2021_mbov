@@ -1,5 +1,4 @@
 import Bio
-#from Bio import AlignIO #to parse the FASTA alignment
 from Bio import SeqIO
 import os
 import argparse
@@ -10,8 +9,6 @@ parser.add_argument('-s','--samples',dest='samples',help='ids to subset the alig
 parser.add_argument('-o','--output',dest='output',help='prefix of the subset FASTA alignment')
 args = parser.parse_args()
 
-#Just simply, can I get the isolates I want from a list?
-#records = (r for r in SeqIO.parse(input_file, "fasta") if r.id.split('|')[2] in wanted)
 print("reading in the ids")
 content = []
 with open(args.samples) as f:

@@ -1,7 +1,3 @@
-#Noah A. Legall
-#Salvador Lab
-#Description: Trim all the isolates using trimmomatic
-#Last Update: April 16th 2021
 import sys # use to access arguments
 import os # use in order to call commands from the terminal script is called in
 import glob # grabs files by name and puts them in a list
@@ -22,8 +18,8 @@ qsub_script.write(
 #SBATCH --ntasks=1             # Run on a single CPU
 #SBATCH --mem=50gb                     # Job memory request
 #SBATCH --time=2:00:00               # Time limit hrs:min:sec
-#SBATCH --output=mbov_trim.%j.out    # Standard output log
-#SBATCH --error=mbov_trim.%j.err     # Standard error log
+#SBATCH --output=mbov_vsnp.%j.out    # Standard output log
+#SBATCH --error=mbov_vsnp.%j.err     # Standard error log
 
 #SBATCH --mail-type=FAIL          # Mail events (NONE, BEGIN, END, FAIL, ALL)
 #SBATCH --mail-user=noahausxsapelo2xdump@gmail.com  # Where to send mail
