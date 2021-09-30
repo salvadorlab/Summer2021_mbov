@@ -81,23 +81,37 @@ hr_stats <- read.csv("recombination_stats.csv")
 import_gg <- hr_stats %>% ggplot(aes(x=Import.Length,)) + 
   geom_histogram(binwidth = 10,fill = "gray") +
   theme_minimal() +
-  xlab("HR length") + labs(tag = "A")
+  xlab("HR length") + ggtitle("A") + 
+  theme(axis.text = element_text(size = 12),
+        axis.title = element_text(size = 15),
+        plot.title = element_text(size = 15, face = "bold"))
 
 snp_size_gg <- hr_stats %>% ggplot(aes(x=No..SNPs,)) + 
   geom_histogram(binwidth = 1,fill = "gray") +
   theme_minimal() +
-  xlab("SNPs per HR region") + labs(tag = "B")
+  xlab("SNPs per HR region") + ggtitle("B") + 
+  theme(axis.text = element_text(size = 12),
+        axis.title = element_text(size = 15),
+        plot.title = element_text(size = 15, face = "bold"))
+
 
 a <- recomb_heat_nolab %>% ggplot(aes(x=num_hr)) +
   geom_histogram(binwidth=1,fill = "gray") + 
   theme_minimal() +
-  xlab("HR per isolate") + labs(tag = "C")
+  xlab("HR per isolate") + ggtitle("C") + 
+  theme(axis.text = element_text(size = 12),
+        axis.title = element_text(size = 15),
+        plot.title = element_text(size = 15, face = "bold"))
+
 
 b <- num_genomes %>% filter(num < 700)  %>% ggplot(aes(x=num)) +
   geom_histogram(binwidth=10,fill = "gray") + 
   theme_minimal() +
-  xlab("isolates with a specifc HR region") + labs(tag = "D")
-  labs(tag = "B")
+  xlab("isolates with a specifc HR region") + ggtitle("D") + 
+  theme(axis.text = element_text(size = 12),
+        axis.title = element_text(size = 15),
+        plot.title = element_text(size = 15, face = "bold"))
+
 
 
 grid.arrange(import_gg,snp_size_gg,a,b,nrow=2)
